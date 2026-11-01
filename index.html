@@ -34,11 +34,21 @@ const ST=[{n:'あおば台',x:0,t:0},{n:'みなと町',x:1500,t:140},{n:'さく�
 const LIM=[[-300,250,55],[250,900,80],[900,1300,85],[1300,1750,70],[1750,2000,80],[2000,2500,55],[2500,3050,85],[3050,3500,70],[3500,3950,80],[3950,4400,85],[4400,9e3,60]];
 const CUR=[[400,800,1/700],[1000,1250,-1/600],[1900,2450,1/450],[2650,3000,-1/800],[3600,4000,1/600],[4100,4500,-1/500]];
 const limAt=x=>{for(const z of LIM)if(x>=z[0]&&x<z[1])return z[2];return 60};
-const curv=x=>{for(const c of CUR)if(x>=c[0]&&x<c[1])return c[2];return 0};
+// 緩和曲線：曲線の両端で曲率を直線的に変化（長さは最大60m）。カントも同じ区間で逓減
+const TRL=c=>Math.min(60,(c[1]-c[0])/4),rmp=(c,x)=>Math.min(1,(x-c[0])/TRL(c),(c[1]-x)/TRL(c));
+const curv=x=>{for(const c of CUR)if(x>=c[0]&&x<c[1])return c[2]*rmp(c,x);return 0};
+// カント（mm）：均衡カント 8.4V²/R の6割（不足カントを許容）、上限105mm、5mm単位
+const CANT=CUR.map(c=>Math.min(105,Math.round(.6*8.4*limAt((c[0]+c[1])/2)**2*Math.abs(c[2])/5)*5));
+const cantAt=x=>{for(let i=0;i<CUR.length;i++){const c=CUR[i];if(x>=c[0]&&x<c[1])return Math.sign(c[2])*CANT[i]/1067*rmp(c,x)}return 0};// 傾斜角(rad)。正=右曲線で左（外軌）が高い
 const GRD=[[300,700,18],[1000,1350,-15],[2000,2400,25],[2600,3000,-25],[3800,4200,20]];
 const TUN=[[1800,2100],[3650,3900]],XNG=[650,2780,4250];
 const SIGS=[{x:450},{x:1000,w:[25,70]},{x:1700},{x:2300,w:[135,175]},{x:2900},{x:3500},{x:4100,w:[255,300]},{x:4500}];
 const grdAt=x=>{for(const z of GRD)if(x>=z[0]&&x<z[1])return z[2];return 0};
+// 縦曲線：勾配変化点を前後30mで滑らかに（半径およそ2,400m相当）
+const grdV=x=>{let t=0;for(let k=-15;k<=15;k++)t+=grdAt(x+k*2);return t/31};
+// 列車長（AR300形 約18.5m）。勾配・曲線抵抗は車両全長で平均、制限速度は後部が抜けるまで有効
+const TLEN=18.5,trAvg=f=>x=>{let t=0;for(let k=0;k<5;k++)t+=f(x-TLEN*k/4);return t/5},grdT=trAvg(grdV),crvT=trAvg(x=>Math.abs(curv(x)));
+const limT=x=>Math.min(limAt(x),limAt(x-TLEN));
 const inTun=x=>TUN.some(t=>x>=t[0]&&x<t[1]);
 const ASP={R:999,Y:45,YG:65,G:999},NM={R:'停止',Y:'注意',YG:'減速',G:'進行'};
 function aspect(i){const a=S.sg;if(a[i].red)return'R';if(a[i+1]&&a[i+1].red)return'Y';if(a[i+2]&&a[i+2].red)return'YG';return'G'}
@@ -49,7 +59,7 @@ const DC={m:34,me:36e3,pm:217e3,ni:650,nx:2100,vd:25.6,t0:3,up:55,dn:42,nf:[0,.1
 function init(){S={atsw:0,atsk:0,atsr:'',sc:{},ovp:false,sg:SIGS.map(()=>({dec:false,red:false})),si:-1,lim:55,x:0,v:0,lev:0,lv:0,pw:0,br:0,ne:DC.ni,gear:'N',sh:0,bc:0,ft:0,mr:8.8,cmp:false,bg:0,clock:0,run:false,cur:1,doors:false,dwell:0,ats:false,atsT:0,over:0,res:[],pen:0,msg:'',mt:0,warned:false,state:'title'}}
 function toast(m,t=3){S.msg=m;S.mt=t}
 function start(){ov.style.display='none';init();S.state='run';SND.init();SND.reset()}
-function showTitle(){ov.style.display='flex';ov.innerHTML='<div class="box"><h2>運転台に乗ろう</h2><p>あおば台 → みなと町 → さくら野 → とうげ。運転席からの眺めで、4駅を時刻通りに、停止位置ぴったりに走らせます。</p><ul><li>↑↓キー（またはボタン）でマスコン操作。力行 P1〜P5、ブレーキ B1〜B8、Space で非常ブレーキ</li><li>制限速度標識（白地に黒の数字）の速度を守ってください。超過が続くと減点されます（ATS-SKは速度を常時は監視しません）</li><li>停車駅の手前には「停車駅接近」の標識があります。ホームの黄色い停止位置目標に先頭を合わせて停めてください。残り距離の表示はありません</li><li>最初に力行した瞬間からダイヤ時計がスタート</li><li>車両は甘木鉄道AR301（AR300形）をモデルにした単行のワンマン気動車です。機関は295PS（定格2,100rpm）、液体式、三管式直通空気ブレーキ、最高速度は85km/h。約55km/hで変速段から直結段に自動で切り替わり、切替中は一瞬加速が途切れます。運転台の配置は、新型ARe501の運転台写真を参考にしています（AR301の実車とは異なる場合があります）。ワンハンドルのマスコン（通常は画面外。Mキーで表示を切り替え。段位と速度は左上に表示）、速度計と圧力計、モニターがあります</li><li>上り下りの勾配、トンネル、踏切があります。下り坂では何もしなくても加速します</li><li>信号は、赤＝停止、黄＝注意（45km/h以下）、青（緑）と黄＝減速（65km/h以下）、青（緑）＝進行です（速度は鉄道会社により異なります）。保安装置はATS-SK型です。注意信号を通過すると警報が鳴るので、5秒以内に「C」キーで確認してください。停止信号を越える、停止信号の手前で速度が高すぎる、警報を確認しない、のいずれかで非常ブレーキがかかり、停止後に「R」キーで復帰します</li></ul><button class="pri" id="go">運転開始</button></div>';document.getElementById('go').onclick=start}
+function showTitle(){ov.style.display='flex';ov.innerHTML='<div class="box"><h2>運転台に乗ろう</h2><p>あおば台 → みなと町 → さくら野 → とうげ。運転席からの眺めで、4駅を時刻通りに、停止位置ぴったりに走らせます。</p><ul><li>↑↓キー（またはボタン）でマスコン操作。力行 P1〜P5、ブレーキ B1〜B8、Space で非常ブレーキ</li><li>制限速度標識（白地に黒の数字）の速度を守ってください。超過が続くと減点されます（ATS-SKは速度を常時は監視しません）</li><li>停車駅の手前には「停車駅接近」の標識があります。ホームの黄色い停止位置目標に先頭を合わせて停めてください。制限速度は、列車の後部（車長18.5m）が制限区間を抜けるまで有効です。残り距離の表示はありません</li><li>最初に力行した瞬間からダイヤ時計がスタート</li><li>車両は甘木鉄道AR301（AR300形）をモデルにした単行のワンマン気動車です。機関は295PS（定格2,100rpm）、液体式、三管式直通空気ブレーキ、最高速度は85km/h。約55km/hで変速段から直結段に自動で切り替わり、切替中は一瞬加速が途切れます。運転台の配置は、新型ARe501の運転台写真を参考にしています（AR301の実車とは異なる場合があります）。ワンハンドルのマスコン（通常は画面外。Mキーで表示を切り替え。段位と速度は左上に表示）、速度計と圧力計、モニターがあります</li><li>上り下りの勾配、トンネル、踏切があります。下り坂では何もしなくても加速します</li><li>信号は、赤＝停止、黄＝注意（45km/h以下）、青（緑）と黄＝減速（65km/h以下）、青（緑）＝進行です（速度は鉄道会社により異なります）。保安装置はATS-SK型です。注意信号を通過すると警報が鳴るので、5秒以内に「C」キーで確認してください。停止信号を越える、停止信号の手前で速度が高すぎる、警報を確認しない、のいずれかで非常ブレーキがかかり、停止後に「R」キーで復帰します</li></ul><button class="pri" id="go">運転開始</button></div>';document.getElementById('go').onclick=start}
 function showEnd(){const s=S,tot=s.res.reduce((a,r)=>a+r.sp+r.pu,0)-s.pen,rk=tot>=380?'S':tot>=300?'A':tot>=220?'B':'C';
 ov.style.display='flex';ov.innerHTML='<div class="box"><h2>運転終了　評価 '+rk+'</h2><table><tr><th>駅</th><th>停止誤差</th><th>定時差</th><th>点</th></tr>'+s.res.map(r=>'<tr><td>'+r.n+'</td><td>'+(r.e>=0?'+':'')+r.e.toFixed(1)+'m</td><td>'+(r.d>=0?'+':'')+r.d+'秒</td><td>'+(r.sp+r.pu)+'</td></tr>').join('')+'<tr><td>ATS減点</td><td></td><td></td><td>-'+s.pen+'</td></tr><tr><td><b>合計</b></td><td></td><td></td><td><b>'+tot+'</b></td></tr></table><button class="pri" id="go">もう一度</button></div>';document.getElementById('go').onclick=start}
 function setLev(v){if(S.state==='run'&&!S.ats)S.lev=v}
@@ -92,14 +102,14 @@ const bt=L===-9?3.9:L<0?-L/8*3.4:0,bT=s.doors?Math.max(bt,1.5):bt,pb=s.bc;
 s.bc+=(bT-s.bc)*(1-Math.exp(-dt/(bT>s.bc?.9:1.2)));if(s.bc>pb)s.mr-=(s.bc-pb)*.12;
 s.br=s.bc/3.4*.9*(1+.35*Math.exp(-k0/10));
 // 抵抗：走行抵抗（kgf/t＋空気抵抗）、勾配、曲線（800/R kgf/t）
-const fr=v>.01?9.8*((1.6+.0285*k0)*DC.m+.028*k0*k0+800*Math.abs(curv(s.x))*DC.m):0,fg=9.8*DC.m*grdAt(s.x);
+const fr=v>.01?9.8*((1.6+.0285*k0)*DC.m+.028*k0*k0+800*crvT(s.x)*DC.m):0,fg=9.8*DC.m*grdT(s.x);
 const a=(s.ft-fr-fg)/DC.me-s.br;
 s.v=Math.max(0,v+a*dt);s.x+=s.v*dt;s.acc=(s.acc||0)*.92+(s.v-v)/dt*.08;
 // 元空気ダメ：機関駆動の空気圧縮機（7.8で入、8.8で切）
 if(s.mr<7.8)s.cmp=true;else if(s.mr>=8.8)s.cmp=false;if(s.cmp)s.mr+=(.03+.09*(s.ne-DC.ni)/(DC.nx-DC.ni))*dt;s.mr-=.002*dt;s.bg+=curv(s.x)*s.v*dt*F;
 while(s.si+1<SIGS.length&&s.x>SIGS[s.si+1].x){s.si++;const ap=aspect(s.si);if(ap==='R')atsEB('即時停止（停止信号冒進）',100);else if(ap==='Y'&&!s.ats)s.atsw=5}
 SIGS.forEach((q,i)=>{const o=s.sg[i];if(q.w&&!o.dec&&s.clock>=q.w[0]){o.dec=true;o.red=q.x-s.x>450&&s.run}if(o.red&&s.clock>=q.w[1])o.red=false});
-const kmh=s.v*3.6,lim=Math.min(limAt(s.x),s.si>=0?ASP[aspect(s.si)]:999);s.lim=lim;
+const kmh=s.v*3.6,lim=Math.min(limT(s.x),s.si>=0?ASP[aspect(s.si)]:999);s.lim=lim;
 if(kmh>lim+3){s.over+=dt;if(s.over>3&&!s.ovp){s.ovp=true;s.pen+=20;toast('制限速度超過（-20点）。ATS-SKは速度を常時は監視しません',4)}}else{s.over=Math.max(0,s.over-dt);if(kmh<=lim)s.ovp=false}
 if(s.atsw>0){s.atsw-=dt;if(s.atsw<=0){s.atsw=0;atsEB('警報未確認（5秒）',50)}}
 if(s.atsk>0)s.atsk-=dt;
@@ -116,7 +126,7 @@ function glass(){const q=g.createLinearGradient(0,0,W,H-180);q.addColorStop(0,'r
 let R=null,SC,CAM,AMB,SUN,HL,PANO,TL=0;const SIGO=[],XO=[];
 try{R=new THREE.WebGLRenderer({canvas:document.getElementById('gl'),antialias:true});R.setPixelRatio(Math.min(devicePixelRatio||1,1.5));R.setSize(W,H,false)}catch(e){R=null}
 const DS=2,S0=-160,S1=5500,NT=Math.ceil((S1-S0)/DS)+2,TX=[],TY=[],TZ=[],TH=[];
-{let x=0,y=0,z=0,th=0;for(let i=0;i<NT;i++){TX[i]=x;TY[i]=y;TZ[i]=z;TH[i]=th;const m=S0+i*DS+DS/2;th+=curv(m)*DS;x+=Math.sin(th)*DS;z-=Math.cos(th)*DS;y+=grdAt(m)/1000*DS}}
+{let x=0,y=0,z=0,th=0;for(let i=0;i<NT;i++){TX[i]=x;TY[i]=y;TZ[i]=z;TH[i]=th;const m=S0+i*DS+DS/2;th+=curv(m)*DS;x+=Math.sin(th)*DS;z-=Math.cos(th)*DS;y+=grdV(m)/1000*DS}}
 function at(s){const f=(s-S0)/DS,i=Math.max(0,Math.min(NT-2,Math.floor(f))),t=Math.max(0,Math.min(1,f-i)),l=A=>A[i]+(A[i+1]-A[i])*t;return{x:l(TX),y:l(TY),z:l(TZ),th:l(TH)}}
 let updV=null;const CHK=[];
 function build3d(){const TV=THREE;
@@ -183,14 +193,14 @@ rg(520,34,'#86b384',[9,23,41]);rg(524,18,'#6ea56a',[17,37,53]);x.fillStyle='#d6e
 const t=new TV.CanvasTexture(c);t.wrapS=TV.RepeatWrapping;t.anisotropy=4;return t})();
 PANO=add(new TV.Mesh(new TV.CylinderGeometry(900,900,1300,64,1,true),new TV.MeshBasicMaterial({map:Tp,side:TV.BackSide,fog:false,depthWrite:false})));PANO.renderOrder=-1;
 // ribbon along the track
-const rb=(pts,s0,s1,ds,mat,tu,tv,of)=>{const n=Math.ceil((s1-s0)/ds)+1,m=pts.length,P=[],U=[],I=[],cu=[0];for(let k=1;k<m;k++)cu[k]=cu[k-1]+Math.hypot(pts[k][0]-pts[k-1][0],pts[k][1]-pts[k-1][1]);
-for(let i=0;i<n;i++){const s=Math.min(s1,s0+i*ds),a=at(s),c=Math.cos(a.th),q=Math.sin(a.th),o=of?of(s):0;for(let k=0;k<m;k++){P.push(a.x+c*(pts[k][0]+o),a.y+pts[k][1],a.z+q*(pts[k][0]+o));U.push(cu[k]/tu,s/tv)}}
+const rb=(pts,s0,s1,ds,mat,tu,tv,of,cn)=>{const n=Math.ceil((s1-s0)/ds)+1,m=pts.length,P=[],U=[],I=[],cu=[0];for(let k=1;k<m;k++)cu[k]=cu[k-1]+Math.hypot(pts[k][0]-pts[k-1][0],pts[k][1]-pts[k-1][1]);
+for(let i=0;i<n;i++){const s=Math.min(s1,s0+i*ds),a=at(s),c=Math.cos(a.th),q=Math.sin(a.th),o=of?of(s):0;for(let k=0;k<m;k++){const lt=pts[k][0]+o;P.push(a.x+c*lt,a.y+pts[k][1]-(cn&&Math.abs(lt)<=2.05?lt*cantAt(s):0),a.z+q*lt);U.push(cu[k]/tu,s/tv)}}
 for(let i=0;i<n-1;i++)for(let k=0;k<m-1;k++){const a=i*m+k,b=a+1,c=a+m,d=c+1;I.push(a,b,c,b,d,c)}
 const g=new TV.BufferGeometry();g.setAttribute('position',new TV.Float32BufferAttribute(P,3));g.setAttribute('uv',new TV.Float32BufferAttribute(U,2));g.setIndex(I);g.computeVertexNormals();return add(new TV.Mesh(g,mat))};
 const mTt=Lm(0xffffff,{map:Tt}),mTb=Lm(0xffffff,{map:Tb});
-rb([[-2,.25],[2,.25]],S0,S1,2,mTt,4,3.2);rb([[-3.4,0],[-2,.25]],S0,S1,2,mTb,3.2,3.2);rb([[2,.25],[3.4,0]],S0,S1,2,mTb,3.2,3.2);
+rb([[-2,.25],[2,.25]],S0,S1,2,mTt,4,3.2,0,1);rb([[-3.4,0],[-2,.25]],S0,S1,2,mTb,3.2,3.2,0,1);rb([[2,.25],[3.4,0]],S0,S1,2,mTb,3.2,3.2,0,1);
 const steel=new TV.MeshPhongMaterial({color:0xaeb3bb,specular:0xffffff,shininess:60,side:2});
-for(const sg of[-.535,.535])rb([[sg-.08,.25],[sg-.08,.28],[sg-.025,.3],[sg-.03,.38],[sg-.045,.41],[sg-.045,.43],[sg+.045,.43],[sg+.045,.41],[sg+.03,.38],[sg+.025,.3],[sg+.08,.28],[sg+.08,.25]],S0,S1,2,steel,1,1);
+for(const sg of[-.535,.535])rb([[sg-.08,.25],[sg-.08,.28],[sg-.025,.3],[sg-.03,.38],[sg-.045,.41],[sg-.045,.43],[sg+.045,.43],[sg+.045,.41],[sg+.03,.38],[sg+.025,.3],[sg+.08,.28],[sg+.08,.25]],S0,S1,2,steel,1,1,0,1);
 const gx=(f,s)=>Lm(0xffffff,{map:cvs(256,256,(x,w,h)=>f(x,w,h,rnd(s)))});
 const MG2=[
 gx((x,w,h,r)=>{x.fillStyle='#86a96a';x.fillRect(0,0,w,h);for(let y=0;y<h;y+=8){x.fillStyle='rgba(60,110,50,.55)';x.fillRect(0,y,w,4);x.fillStyle='rgba(150,190,200,.35)';for(let i=0;i<6;i++)x.fillRect(r()*w,y+4,10+r()*30,3)}},21),
@@ -320,7 +330,7 @@ if(hash(s*.31+sd*5)<dn*.85&&!ST.some(q=>sd>0&&s>q.x-125&&s<q.x+40))bld(s,sd<0?-O
 }
 function render3d(){const s=S,a=at(s.x),b=at(s.x+30),sp=Math.min(1,s.v*3.6/60),tm=performance.now()/1000;
 const sy=Math.sin(s.x*1.7)*.025*sp+Math.sin(tm*9)*.004*sp+Math.sin(tm*47)*.0025*(1+s.pw*.4),sx=Math.sin(s.x*.21)*.03*sp-.75;
-CAM.position.set(a.x+Math.cos(a.th)*sx,a.y+CH+sy,a.z+Math.sin(a.th)*sx);CAM.lookAt(b.x-Math.cos(b.th)*.75,b.y+CH,b.z-Math.sin(b.th)*.75);CAM.rotateX((s.acc||0)*.02);CAM.rotateZ(Math.sin(s.x*.3)*.004*sp-s.v*s.v*curv(s.x)*.012);
+const cp=cantAt(s.x),au=s.v*s.v*curv(s.x)-9.8*cp,sx2=sx+CH*cp;CAM.position.set(a.x+Math.cos(a.th)*sx2,a.y+CH+sy+.75*cp,a.z+Math.sin(a.th)*sx2);CAM.lookAt(b.x-Math.cos(b.th)*.75,b.y+CH,b.z-Math.sin(b.th)*.75);CAM.rotateX((s.acc||0)*.02);CAM.rotateZ(Math.sin(s.x*.3)*.004*sp-cp+.06*au/9.8);
 PANO.position.copy(CAM.position);CHK.forEach(k=>{const d=k.c-s.x;k.o.visible=d>-170&&d<880});
 TL+=((inTun(s.x+4)?1:0)-TL)*.06;AMB.intensity=.55-.38*TL;SUN.intensity=.5*(1-TL)+.02;HL.intensity=1.5*TL;HL.position.copy(CAM.position);
 SIGO.forEach(o=>{let as=o.i>=0?aspect(o.i):'G';if(o.st!=null)as=(s.doors&&o.st===s.cur-1)?'R':'G';const on=o.l.length===4?{G:[1,0,0,0],YG:[1,1,0,0],Y:[0,1,0,0],R:[0,0,1,0]}[as]:as==='R'?[0,0,1]:[1,0,0];o.l.forEach((l,j)=>l.material.color.setHex(on[j]?o.c[j]:0x23272d))});
