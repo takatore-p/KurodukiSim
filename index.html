@@ -25,8 +25,8 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 </style></head><body><main>
 <h1>運転台 鉄道運転シミュレーター</h1>
 <div class="stage"><canvas id="gl" width="960" height="720"></canvas><canvas id="c" width="960" height="720"></canvas><div id="ov"></div></div>
-<div class="ctl"><button id="bu">▲ 力行 / ブレーキ緩め</button><button id="bd">▼ ブレーキ / 力行戻し</button><button id="bn">N（切）</button><button id="be" class="eb">非常ブレーキ</button><button id="bmc">マスコン表示 (M)</button><button id="bka">ATS確認 (C)</button><button id="bre">ATS復帰 (R)</button></div>
-<p class="hint">キー操作: ↑↓（W/S）でマスコン、N で切、Space で非常ブレーキ、C でATS確認、R でATS復帰、M でマスコン表示切替　［版：無線機設置・計器は操作台］</p>
+<div class="ctl"><button id="bu">▲ 力行 / ブレーキ緩め</button><button id="bd">▼ ブレーキ / 力行戻し</button><button id="bn">N（切）</button><button id="be" class="eb">非常ブレーキ</button><button id="bmc">マスコン表示 (M)</button><button id="bka">ATS確認 (C)</button><button id="bre">ATS復帰 (R)</button><button id="bhn">警笛 (H)</button><button id="bsn">音 ON/OFF (V)</button></div>
+<p class="hint">キー操作: ↑↓（W/S）でマスコン、N で切、Space で非常ブレーキ、C でATS確認、R でATS復帰、M でマスコン表示切替、H で警笛（押している間）、V でサウンド切替　［版：無線機設置・計器は操作台］</p>
 </main><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script>
 const cv=document.getElementById('c'),g=cv.getContext('2d'),ov=document.getElementById('ov');
 const W=960,H=720,hy=225,F=560,CH=2.7;
@@ -48,7 +48,7 @@ let S,last=0;
 const DC={m:34,me:36e3,pm:217e3,ni:650,nx:2100,vd:25.6,t0:3,up:55,dn:42,nf:[0,.18,.4,.6,.8,1]};
 function init(){S={atsw:0,atsk:0,atsr:'',sc:{},ovp:false,sg:SIGS.map(()=>({dec:false,red:false})),si:-1,lim:55,x:0,v:0,lev:0,lv:0,pw:0,br:0,ne:DC.ni,gear:'N',sh:0,bc:0,ft:0,mr:8.8,cmp:false,bg:0,clock:0,run:false,cur:1,doors:false,dwell:0,ats:false,atsT:0,over:0,res:[],pen:0,msg:'',mt:0,warned:false,state:'title'}}
 function toast(m,t=3){S.msg=m;S.mt=t}
-function start(){ov.style.display='none';init();S.state='run'}
+function start(){ov.style.display='none';init();S.state='run';SND.init();SND.reset()}
 function showTitle(){ov.style.display='flex';ov.innerHTML='<div class="box"><h2>運転台に乗ろう</h2><p>あおば台 → みなと町 → さくら野 → とうげ。運転席からの眺めで、4駅を時刻通りに、停止位置ぴったりに走らせます。</p><ul><li>↑↓キー（またはボタン）でマスコン操作。力行 P1〜P5、ブレーキ B1〜B8、Space で非常ブレーキ</li><li>制限速度標識（白地に黒の数字）の速度を守ってください。超過が続くと減点されます（ATS-SKは速度を常時は監視しません）</li><li>停車駅の手前には「停車駅接近」の標識があります。ホームの黄色い停止位置目標に先頭を合わせて停めてください。残り距離の表示はありません</li><li>最初に力行した瞬間からダイヤ時計がスタート</li><li>車両は甘木鉄道AR301（AR300形）をモデルにした単行のワンマン気動車です。機関は295PS（定格2,100rpm）、液体式、三管式直通空気ブレーキ、最高速度は85km/h。約55km/hで変速段から直結段に自動で切り替わり、切替中は一瞬加速が途切れます。運転台の配置は、新型ARe501の運転台写真を参考にしています（AR301の実車とは異なる場合があります）。ワンハンドルのマスコン（通常は画面外。Mキーで表示を切り替え。段位と速度は左上に表示）、速度計と圧力計、モニターがあります</li><li>上り下りの勾配、トンネル、踏切があります。下り坂では何もしなくても加速します</li><li>信号は、赤＝停止、黄＝注意（45km/h以下）、青（緑）と黄＝減速（65km/h以下）、青（緑）＝進行です（速度は鉄道会社により異なります）。保安装置はATS-SK型です。注意信号を通過すると警報が鳴るので、5秒以内に「C」キーで確認してください。停止信号を越える、停止信号の手前で速度が高すぎる、警報を確認しない、のいずれかで非常ブレーキがかかり、停止後に「R」キーで復帰します</li></ul><button class="pri" id="go">運転開始</button></div>';document.getElementById('go').onclick=start}
 function showEnd(){const s=S,tot=s.res.reduce((a,r)=>a+r.sp+r.pu,0)-s.pen,rk=tot>=380?'S':tot>=300?'A':tot>=220?'B':'C';
 ov.style.display='flex';ov.innerHTML='<div class="box"><h2>運転終了　評価 '+rk+'</h2><table><tr><th>駅</th><th>停止誤差</th><th>定時差</th><th>点</th></tr>'+s.res.map(r=>'<tr><td>'+r.n+'</td><td>'+(r.e>=0?'+':'')+r.e.toFixed(1)+'m</td><td>'+(r.d>=0?'+':'')+r.d+'秒</td><td>'+(r.sp+r.pu)+'</td></tr>').join('')+'<tr><td>ATS減点</td><td></td><td></td><td>-'+s.pen+'</td></tr><tr><td><b>合計</b></td><td></td><td></td><td><b>'+tot+'</b></td></tr></table><button class="pri" id="go">もう一度</button></div>';document.getElementById('go').onclick=start}
@@ -58,8 +58,9 @@ function atsAck(){if(S.state==='run'&&S.atsw>0){S.atsw=0;S.atsk=3;toast('ATS 確
 function atsReset(){if(S.state==='run'&&S.ats){if(S.v<.05){S.ats=false;S.over=0;S.lev=0;S.atsr='';toast('ATS復帰。マスコンをNから操作してください')}else toast('停止してから復帰扱いをしてください')}}
 function lever(d){if(S.state==='run'&&!S.ats)S.lev=Math.max(-9,Math.min(5,S.lev+d))}
 addEventListener('keydown',e=>{const k=e.key;if(['ArrowUp','ArrowDown',' '].includes(k))e.preventDefault();if(e.repeat)return;
-if(k==='ArrowUp'||k==='w'||k==='W')lever(1);else if(k==='ArrowDown'||k==='s'||k==='S')lever(-1);else if(k==='n'||k==='N')setLev(0);else if(k===' ')setLev(-9);else if(k==='m'||k==='M')showCtl=!showCtl;else if(k==='c'||k==='C')atsAck();else if(k==='r'||k==='R')atsReset()});
-bu.onclick=()=>lever(1);bd.onclick=()=>lever(-1);bn.onclick=()=>setLev(0);be.onclick=()=>setLev(-9);bmc.onclick=()=>{showCtl=!showCtl};bka.onclick=atsAck;bre.onclick=atsReset;
+if(k==='ArrowUp'||k==='w'||k==='W')lever(1);else if(k==='ArrowDown'||k==='s'||k==='S')lever(-1);else if(k==='n'||k==='N')setLev(0);else if(k===' ')setLev(-9);else if(k==='m'||k==='M')showCtl=!showCtl;else if(k==='c'||k==='C')atsAck();else if(k==='r'||k==='R')atsReset();else if(k==='h'||k==='H')SND.horn(true);else if(k==='v'||k==='V')SND.toggle()});
+addEventListener('keyup',e=>{if(e.key==='h'||e.key==='H')SND.horn(false)});
+bu.onclick=()=>lever(1);bd.onclick=()=>lever(-1);bn.onclick=()=>setLev(0);be.onclick=()=>setLev(-9);bmc.onclick=()=>{showCtl=!showCtl};bka.onclick=atsAck;bre.onclick=atsReset;bhn.onpointerdown=()=>SND.horn(true);bhn.onpointerup=bhn.onpointerleave=bhn.onpointercancel=()=>SND.horn(false);bsn.onclick=()=>SND.toggle();
 
 function arrive(e){const s=S,st=ST[s.cur],d=Math.round(s.clock-st.t);
 const sp=e>10?0:Math.max(0,Math.round(100-Math.abs(e)*6)),pu=Math.max(0,Math.round(50-Math.abs(d)*2));
@@ -394,8 +395,71 @@ const sg=g.createLinearGradient(183,0,197,0);sg.addColorStop(0,'#2a2d33');sg.add
 g.font='bold 15px sans-serif';g.textAlign='center';g.fillStyle=act>0?'#4ade80':act<0?'#f87171':'#e2e8f0';g.fillText(nm,202,438);
 g.restore();{const hn=s.ats?'EB':s.lev>0?'P'+s.lev:s.lev===0?'N':s.lev===-9?'EB':'B'+(-s.lev);rr(10,10,142,36,6,'rgba(12,15,20,.78)');g.textAlign='left';g.font='bold 20px sans-serif';g.fillStyle=hn[0]==='P'?'#4ade80':hn==='N'?'#e2e8f0':'#f87171';g.fillText(hn,20,35);g.fillStyle='#fff';g.fillText(Math.round(kmh),66,35);g.font='11px sans-serif';g.fillStyle='#9fb3c8';g.fillText('km/h',100,35)}{const hint=s.state!=='run'?'':s.ats?(s.v<.05?'ATSが作動しました。Rキーで復帰してください':'ATSが作動しました。停止します'):s.atsw>0?'ATS警報！ 5秒以内にCキーで確認してください':s.doors?'ドア扱い中です。ドアが閉まるまでお待ちください':!s.run?'マスコンを力行に入れて発車しましょう（W・↑キー）':'';if(hint){g.font='bold 26px sans-serif';g.textAlign='center';g.lineWidth=5;g.strokeStyle='rgba(0,40,0,.85)';g.strokeText(hint,480,334+cdy()-24);g.fillStyle='#9dff3b';g.fillText(hint,480,334+cdy()-24)}}
 if(s.mt>0){g.globalAlpha=Math.min(1,s.mt);g.font='bold 20px sans-serif';g.textAlign='center';const w=g.measureText(s.msg).width+40;g.fillStyle='rgba(0,0,0,.7)';g.fillRect(480-w/2,150,w,40);g.fillStyle='#fff';g.fillText(s.msg,480,177);g.globalAlpha=1}}
+// ===== サウンド（Web Audioで合成。音声ファイル不要） =====
+const SND=(()=>{let A=null,M,NB,on=true,E={},lastJ=null,lastBc=0,chT=0,xT=0,lev0=0,door0=false,gear0='N',ats0=false;
+const AX=[1.2,3.2,14.2,16.2],AXG=[1,.85,.45,.4];// 軸位置（先頭からm）：前台車2軸・後台車2軸
+const gn=v=>{const g=A.createGain();g.gain.value=v;return g};
+const flt=(t,f,q)=>{const b=A.createBiquadFilter();b.type=t;b.frequency.value=f;if(q!=null)b.Q.value=q;return b};
+const osc=(t,f)=>{const o=A.createOscillator();o.type=t;o.frequency.value=f;o.start();return o};
+const nsrc=()=>{const s=A.createBufferSource();s.buffer=NB;s.loop=true;s.start(0,Math.random()*1.9);return s};
+const ch=(...n)=>{for(let i=0;i<n.length-1;i++)n[i].connect(n[i+1]);return n[n.length-1]};
+const set=(p,v,tc=.05)=>p.setTargetAtTime(v,A.currentTime,tc);
+function hit(f,dur,g,ty='sine',t0=0){const t=A.currentTime+t0,o=A.createOscillator(),e=A.createGain();o.type=ty;o.frequency.value=f;e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(g,t+.004);e.gain.exponentialRampToValueAtTime(.0001,t+dur);ch(o,e,M);o.start(t);o.stop(t+dur+.05)}
+function burst(fc,q,dur,g,t0=0,atk=.003){const t=A.currentTime+t0,s=A.createBufferSource(),e=A.createGain();s.buffer=NB;e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(g,t+atk);e.gain.exponentialRampToValueAtTime(.0001,t+dur);ch(s,flt('bandpass',fc,q),e,M);s.start(t,Math.random()*1.5);s.stop(t+dur+.05)}
+function joint(g){burst(1300,.9,.05,g*.55);hit(62,.13,g,'sine');hit(170,.05,g*.35,'triangle')}
+function init(){if(A){A.resume();return}const C=window.AudioContext||window.webkitAudioContext;if(!C)return;try{A=new C()}catch(e){return}
+M=gn(on?.8:0);const cp=A.createDynamicsCompressor();M.connect(cp);cp.connect(A.destination);
+NB=A.createBuffer(1,A.sampleRate*2,A.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+// 機関：6気筒4サイクル → 爆発周波数 = rpm/60×3。のこぎり波＋半分の周波数の矩形波（不等間隔感）＋爆発に同期した燃焼ノイズ
+E.o1=osc('sawtooth',32);E.o2=osc('square',16);E.o3=osc('sine',32);E.lp=flt('lowpass',400,1.2);E.g=gn(0);
+ch(E.o1,gn(.5),E.lp);ch(E.o2,gn(.22),E.lp);ch(E.o3,gn(.6),E.lp);E.nb=flt('bandpass',300,.8);E.ng=gn(.15);ch(nsrc(),E.nb,E.ng,E.lp);
+E.am=gn(0);E.o1.connect(E.am);E.am.connect(E.ng.gain);ch(E.lp,E.g,M);
+// 変速機・推進軸のうなり
+E.wh=osc('sine',100);E.wg=gn(0);ch(E.wh,E.wg,M);
+// 走行音（転動音＋低いゴロゴロ）
+E.rl=flt('lowpass',300,.5);E.rg=gn(0);ch(nsrc(),E.rl,E.rg,M);E.rb=flt('lowpass',90,1);E.rbg=gn(0);ch(nsrc(),E.rb,E.rbg,M);
+// 空気（ブレーキ排気・給気）
+E.ag=gn(0);ch(nsrc(),flt('highpass',1800),E.ag,M);E.ig=gn(0);ch(nsrc(),flt('bandpass',3200,1.5),E.ig,M);
+// 制輪子・フランジの鳴き
+E.sq=osc('sine',2600);const vb=osc('sine',6.5),vg=gn(40);ch(vb,vg,E.sq.frequency);E.sqg=gn(0);E.sq.connect(E.sqg);ch(osc('sine',3950),gn(.4),E.sqg);E.sqg.connect(M);
+// 空気圧縮機（低いうなりを周期的に変調）
+E.ca=gn(.5);ch(osc('square',9),gn(.5),E.ca.gain);E.cg=gn(0);ch(nsrc(),flt('lowpass',450,2),E.ca,E.cg,M);
+// ATS警報ベル（電鈴：高い金属音を約20Hzで断続）
+E.ba=gn(.5);ch(osc('square',20),gn(.5),E.ba.gain);E.bg=gn(0);const bf=flt('bandpass',2600,2.5);ch(osc('square',2330),bf);ch(osc('square',2910),bf);ch(bf,E.ba,E.bg,M);
+// 警笛（タイフォン風の2音）
+E.hg=gn(0);const hf=flt('lowpass',1900,1);ch(osc('sawtooth',356),hf);ch(osc('sawtooth',423),gn(.8),hf);ch(hf,E.hg,M)}
+function up(dt){if(!A||A.state!=='running'||!(dt>0))return;const s=S,k=s.v*3.6,tn=1+.8*TL,st=s.state==='run';
+// 機関
+const f=s.ne/60*3,rn=(s.ne-DC.ni)/(DC.nx-DC.ni),ld=Math.min(1,s.ft/12000+(s.lev>0&&!s.ats&&!s.doors?.12:0));
+set(E.o1.frequency,f);set(E.o2.frequency,f/2);set(E.o3.frequency,f);set(E.nb.frequency,f*8);
+set(E.lp.frequency,180+rn*500+ld*1400,.08);set(E.g.gain,(.10+.12*rn+.22*ld)*tn,.08);set(E.am.gain,.35*ld,.08);
+set(E.wh.frequency,Math.max(20,s.v*36));set(E.wg.gain,.012*Math.min(1,s.v/8)*(s.gear==='D'&&s.ft>500?1.7:1));
+// 走行音
+set(E.rl.frequency,250+k*12);set(E.rg.gain,.18*Math.pow(Math.min(1,k/90),1.2)*tn,.1);set(E.rbg.gain,.25*Math.min(1,k/60)*tn,.1);
+// ジョイント音（25m定尺。トンネル内はロングレール）
+if(!lastJ)lastJ=AX.map(o=>Math.floor((s.x-o)/25));
+AX.forEach((o,i)=>{const j=Math.floor((s.x-o)/25);if(j!==lastJ[i]){lastJ[i]=j;if(!inTun(s.x-o)&&s.v>.3)joint(.5*AXG[i]*Math.min(1,Math.pow(k/60,.7))*tn)}});
+// 空気
+const db=(s.bc-lastBc)/dt;lastBc=s.bc;set(E.ag.gain,db<-.05?Math.min(.3,-db*.12):0,.04);set(E.ig.gain,db>.05?Math.min(.08,db*.03):0,.04);
+// 鳴き：停止直前のブレーキ、急曲線
+let sq=0;if(s.v>.1&&k<14&&s.bc>.8)sq=.035*(1-k/14)*Math.min(1,s.bc/2.5);if(Math.abs(curv(s.x))>1/500&&k>20)sq+=.015;set(E.sqg.gain,sq,.08);
+set(E.cg.gain,s.cmp?.08:0,.2);
+// ATS：警報中・非常制動中はベル、確認扱い後はチャイム
+set(E.bg.gain,st&&(s.atsw>0||s.ats)?.09:0,.01);
+if(s.atsk>0){chT-=dt;if(chT<=0){chT=1;hit(988,.6,.12);hit(784,.8,.12,'sine',.35)}}else chT=0;
+// 踏切警報音
+xT-=dt;if(xT<=0){xT=.5;for(const c of XNG){const d=c-s.x;if(d>-30&&d<520){const g=.3/(1+(Math.hypot(d,4)/35)**2);if(g>.003){hit(740,.3,g,'triangle');hit(1480,.2,g*.4)}}}}
+// イベント音
+if(s.lev!==lev0){lev0=s.lev;burst(3000,2,.03,.12);hit(120,.04,.12,'square')}
+if(s.doors!==door0){door0=s.doors;burst(2500,.5,.9,.22,0,.05);hit(90,.15,.3,'sine',.85)}
+if(s.gear!==gear0){if(s.gear==='D'||gear0==='D')hit(55,.25,.35);gear0=s.gear}
+if(s.ats&&!ats0)burst(1500,.4,1.6,.35,0,.02);ats0=s.ats}
+return{init,up,reset(){lastJ=null;lastBc=0;lev0=0;door0=false;gear0='N';ats0=false},
+horn(b){if(A)set(E.hg.gain,b&&on?.2:0,b?.02:.07)},
+vis(){if(A)document.hidden?A.suspend():A.resume()},toggle(){on=!on;if(A)set(M.gain,on?.8:0);toast(on?'サウンド ON':'サウンド OFF',1.5)}}})();
+document.addEventListener('visibilitychange',()=>SND.vis());
 let gr;
 function draw(){g.clearRect(0,0,W,H);if(R)render3d();else{g.fillStyle='#345';g.fillRect(0,0,W,360);g.fillStyle='#fff';g.font='20px sans-serif';g.textAlign='center';g.fillText('WebGLが使えないため3D表示できません',480,180)}glass();cab()}
-function loop(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;if(S.state!=='title')step(dt);draw();requestAnimationFrame(loop)}
+function loop(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;if(S.state!=='title'){step(dt);SND.up(dt)}draw();requestAnimationFrame(loop)}
 init();showTitle();requestAnimationFrame(loop);
 </script></body></html>
