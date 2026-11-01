@@ -50,6 +50,10 @@ const grdV=x=>{let t=0;for(let k=-15;k<=15;k++)t+=grdAt(x+k*2);return t/31};
 const TLEN=18.5,trAvg=f=>x=>{let t=0;for(let k=0;k<5;k++)t+=f(x-TLEN*k/4);return t/5},grdT=trAvg(grdV),crvT=trAvg(x=>Math.abs(curv(x)));
 const limT=x=>Math.min(limAt(x),limAt(x-TLEN));
 const inTun=x=>TUN.some(t=>x>=t[0]&&x<t[1]);
+// 丘陵の高さ（線路面基準, m）と、切土・坑門を反映した地表高
+const HILL_H=22,HF=8.5,CUTK=1.25,sst=(e0,e1,x)=>{const t=Math.max(0,Math.min(1,(x-e0)/(e1-e0)));return t*t*(3-2*t)};
+const hillH=(s,l)=>{let m=0;for(const[a,b]of TUN){const fs=sst(a-120,a-10,s)*(1-sst(b+10,b+120,s));if(fs>0)m=Math.max(m,HILL_H*fs*(1-sst(14,58,Math.abs(l)))*(.85+.15*Math.sin(s*.031+l*.07)))}return m};
+const terH=(s,l)=>{const h=hillH(s,l),cu=Math.max(0,Math.abs(l)-4.5)*CUTK;for(const[a,b]of TUN)if(s>=a&&s<=b)return Math.min(h,Math.max(HF,cu)+Math.min(s-a,b-s));return Math.min(h,cu)};
 const ATS_LC=600,ATS_SP=[[150,55],[60,35]],ATS_SL=12;// ロング地上子の距離、速度照査（信号手前m, 照査速度km/h）、時素地上子の間隔m
 const ASP={R:999,Y:45,YG:65,G:999},NM={R:'停止',Y:'注意',YG:'減速',G:'進行'};
 function aspect(i){const a=S.sg;if(a[i].red)return'R';if(a[i+1]&&a[i+1].red)return'Y';if(a[i+2]&&a[i+2].red)return'YG';return'G'}
@@ -264,7 +268,7 @@ Object.keys(F).forEach(key=>{const L=F[key],kind=key[0],k=+key.slice(1),im=new T
 const PG=(()=>{const g=new TV.PlaneGeometry(1,1);g.translate(0,.5,0);const n=g.attributes.normal;for(let i=0;i<n.count;i++)n.setXYZ(i,0,1,0);return g})();
 const TMt=[0,1,2,3].map(k=>Lm(0xffffff,{map:treeTex(k),alphaTest:.5})),D=new TV.Object3D(),CL=new TV.Color(),bk={};
 for(let s=S0;s<S1-100;s+=6)for(const sd of[-1,1]){const h0=hash(s*.37+sd),dn=town(s);if(h0<(dn>.8?.82:.52)||inTun(s))continue;const u=hash(s+sd*3),ty=u<.34?0:u<.58?1:u<.68?2:3,lat=sd*(ty===3?4.6+hash(s*.2)*6:8+hash(s*.11+sd)*46);
-if(BR.some(b=>Math.abs(s-b)<7)||(plotType(s,sd)&&Math.abs(lat)>(sd>0?26:-OFF(s)+24))||(sd<0&&Math.abs(lat)>-OFF(s)-8&&Math.abs(lat)<-OFF(s)+9)||ST.some(q=>sd>0&&Math.abs(lat)<24&&s>q.x-120&&s<q.x+40)||(dn>.8&&Math.abs(lat)<16))continue;
+if(BR.some(b=>Math.abs(s-b)<7)||hillH(s,lat)>.6||(plotType(s,sd)&&Math.abs(lat)>(sd>0?26:-OFF(s)+24))||(sd<0&&Math.abs(lat)>-OFF(s)-8&&Math.abs(lat)<-OFF(s)+9)||ST.some(q=>sd>0&&Math.abs(lat)<24&&s>q.x-120&&s<q.x+40)||(dn>.8&&Math.abs(lat)<16))continue;
 const q0=hash(s*.9),hh=[9+q0*8,15+q0*10,8+q0*5,6+q0*3][ty],sx=hh*[.6,.36,.8,.75][ty]*(.85+hash(s+9)*.3),a=at(s),c=Math.cos(a.th),q=Math.sin(a.th),key=Math.floor((s-S0)/150)*4+ty;
 (bk[key]=bk[key]||[]).push([a.x+c*lat,a.y-.05,a.z+q*lat,-a.th+hash(s*2)*3,sx,hh,.88+hash(s*3)*.24,.9+hash(s*5)*.2,.82+hash(s*7)*.22])}
 Object.keys(bk).forEach(key=>{const L=bk[key],ty=key%4,c=S0+(Math.floor(key/4)+.5)*150;[0,1].forEach(j=>{const im=new TV.InstancedMesh(PG,TMt[ty],L.length);L.forEach((t,i)=>{D.position.set(t[0],t[1],t[2]);D.rotation.set(0,t[3]+j*1.5708,0);D.scale.set(t[4],t[5],1);D.updateMatrix();im.setMatrixAt(i,D.matrix);im.setColorAt(i,CL.setRGB(t[6],t[7],t[8]))});im.frustumCulled=false;add(im);CHK.push({o:im,c})})});
@@ -306,8 +310,24 @@ const o={s:c,arms:[],lamps:[]};for(const sd of[-1,1]){const pv=new TV.Group();pv
 bx(.15,3.6,.15,c-3.4,sd*3.5,1.8,0xaab0b6);bx(.14,.5,1.2,c-3.4,sd*3.5,2.9,0x222222);for(const j of[-1,1]){const mt=new TV.MeshBasicMaterial({color:0x4a1414,side:2});[1,-1].forEach((e,n)=>{const lm=new TV.Mesh(new TV.CircleGeometry(.21,16).rotateY(e*Math.PI/2),mt);SC.add(lm);place(lm,c-3.4+j*.38,sd*3.5+e*.075,2.9);if(!n)o.lamps.push(lm)})}}XO.push(o)});
 // tunnels
 const Tu=cvs(128,128,(x,w,h)=>{x.fillStyle='#4c4f56';x.fillRect(0,0,w,h);const r=rnd(5);for(let i=0;i<500;i++){x.fillStyle='rgba(0,0,0,'+r()*.12+')';x.fillRect(r()*w,r()*h,r()*20,r()*2)}x.fillStyle='#fff6c8';x.fillRect(48,4,32,10);x.fillStyle='rgba(0,0,0,.25)';x.fillRect(0,h-4,w,4)});
-TUN.forEach(([a,b])=>{rb([[-3,.2],[-3,4.8],[-2.2,6],[0,6.3],[2.2,6],[3,4.8],[3,.2]],a,b,4,new TV.MeshBasicMaterial({map:Tu,side:2,fog:false}),12,8);rb([[-50,-.5],[-22,11],[22,11],[50,-.5]],a,b,10,MG[0],16,16);
-for(const s of[a-1,b+1]){bx(40,12,2,s,-23,6,0x58894b);bx(40,12,2,s,23,6,0x58894b);bx(6.2,5.4,2,s,0,9.3,0x58894b);bx(.8,7,2.2,s,-3.4,3.5,0xc4c6ca);bx(.8,7,2.2,s,3.4,3.5,0xc4c6ca);bx(7.6,.8,2.2,s,0,7.2,0xc4c6ca)}});
+TUN.forEach(([a,b])=>{rb([[-3,.2],[-3,4.8],[-2.2,6],[0,6.3],[2.2,6],[3,4.8],[3,.2]],a,b,4,new TV.MeshBasicMaterial({map:Tu,side:2,fog:false}),12,8);});
+// 山の地形：トンネル上を覆う丘陵。坑口の手前は切土（法面勾配1:0.8）、坑口はコンクリートの坑門で塞ぐ
+{const MHi=Lm(0x9aa886,{map:MG[3].map}),MPt=Lm(0xc2c3be,{map:Tc});
+TUN.forEach(([a,b])=>{const Ss=[];for(let s=a-124;s<=b+124;s+=4)Ss.push(s);Ss.push(a-.02,a+.02,b-.02,b+.02);Ss.sort((x,y)=>x-y);
+const Ls=[];for(let l=-70;l<=70;l+=2.5)Ls.push(l);const P=[],U=[],I=[],nl=Ls.length;
+Ss.forEach(s=>{const p=at(s),c=Math.cos(p.th),q=Math.sin(p.th);Ls.forEach(l=>{const h=terH(s,l);P.push(p.x+c*l,p.y+(h>.15?h:-.12),p.z+q*l);U.push(l/8,s/8)})});
+for(let i=0;i<Ss.length-1;i++)if(!(Math.abs(Ss[i]-a+.02)<.001||Math.abs(Ss[i]-b+.02)<.001))for(let k=0;k<nl-1;k++){const p=i*nl+k,r=p+1,u=p+nl,w=u+1;I.push(p,r,u,r,w,u)}
+const g=new TV.BufferGeometry();g.setAttribute('position',new TV.Float32BufferAttribute(P,3));g.setAttribute('uv',new TV.Float32BufferAttribute(U,2));g.setIndex(I);g.computeVertexNormals();add(new TV.Mesh(g,MHi));
+// 坑門（台形の面にアーチ形の開口）＋笠石＋扁額
+const Lf=4.5+HF/CUTK;for(const[s,dir]of[[a,1],[b,-1]]){const sp=new TV.Shape();sp.moveTo(-Lf,HF);sp.lineTo(-4.5,0);sp.lineTo(4.5,0);sp.lineTo(Lf,HF);sp.closePath();
+const ho=new TV.Path();[[-3,.2],[-3,4.8],[-2.2,6],[0,6.3],[2.2,6],[3,4.8],[3,.2]].forEach((v,i)=>i?ho.lineTo(v[0],v[1]):ho.moveTo(v[0],v[1]));ho.closePath();sp.holes.push(ho);
+const fg=new TV.ExtrudeGeometry(sp,{depth:1.2,bevelEnabled:false});fg.translate(0,0,dir>0?-1.2:0);const uv=fg.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/3.2,uv.getY(i)/3.2);
+const G=new TV.Group();G.add(new TV.Mesh(fg,MPt));bxm(G,2*Lf+.6,.45,1.8,0,HF,dir>0?-.6:.6,MPt);bxm(G,2.2,.7,.08,0,6.8,dir>0?.02:-.02,Lm(0x5a5f63));place(G,s,0,0);add(G)}
+// 山の木（スギ・広葉樹・低木）
+const r=rnd(Math.round(a)),bk2=[[],[],[],[]];for(let n=0;n<1800;n++){const s=a-115+r()*(b-a+230),l=(r()*2-1)*62,h=terH(s,l);if(h<1.2)continue;
+if((s<a-4||s>b+4)&&Math.abs(l)<4.5+h/CUTK+2)continue;const u=r(),ty=u<.35?1:u<.75?0:3,hh=[10+r()*6,13+r()*8,0,5+r()*3][ty],p=at(s),c=Math.cos(p.th),q=Math.sin(p.th);
+bk2[ty].push([p.x+c*l,p.y+h-.3,p.z+q*l,r()*3,hh*[.6,.36,.8,.75][ty],hh])}
+bk2.forEach((L,ty)=>{if(!L.length)return;[0,1].forEach(j=>{const im=new TV.InstancedMesh(PG,TMt[ty],L.length);L.forEach((t,i)=>{D.position.set(t[0],t[1],t[2]);D.rotation.set(0,t[3]+j*1.5708,0);D.scale.set(t[4],t[5],1);D.updateMatrix();im.setMatrixAt(i,D.matrix);const k=.82+hash(t[0]*.37+t[2])*.25;im.setColorAt(i,CL.setRGB(k*.95,k,k*.92))});im.frustumCulled=false;add(im)})});D.scale.set(1,1,1)})}
 // buildings (composed shapes)
 const bld=(s,edge,sd,dn,rowB,k)=>{const G=new TV.Group(),R=i=>hash(s*.13+k*7.7+i),fm=MF[Math.floor(R(1)*7)],wl=[fm,fm,MR[0],MR[0],fm,fm],tr=-sd,rt=MRT[Math.floor(R(2)*4)];
 const sgn=(W,Hh,x,y,ry)=>{const m=new TV.Mesh(new TV.PlaneGeometry(W,Hh),MSG[Math.floor(R(8)*7)]);m.rotation.y=ry;m.position.set(x,y,0);G.add(m)};
@@ -324,7 +344,7 @@ if(R(9)>.45){const w2=w*.55,d2=d*.55,wx=tr*(w/2+w2/2-.8),wz=(R(10)>.5?1:-1)*(d/2
 bxm(G,.25,1.3,d+6,tr*(w/2+ex+2.5),0,0,MWall)}
 else if(ty===3){w=5.5+R(4)*2;const d=6+R(5)*2,h=6.4;bxm(G,w,h,d,0,0,0,[MF[2],MF[2],MR[2],MR[2],MF[2],MF[2]]);fp(G,d*.9,2.6,tr*(w/2+.03),0,0,MSH[Math.floor(R(7)*4)],Math.PI/2,4,3.6);gable(G,w,d,0,h,0,1.8,rt,true);if(R(11)>.35)sgn(d*.6,.8,tr*(w/2+.08),3.3,Math.PI/2);if(R(12)>.75)sgn(1.4,.6,tr*(w/2+.8),4.6,0)}
 else{w=16+R(4)*8;const d=10+R(5)*5,h=5.5;bxm(G,w,h,d,0,0,0,[MCor,MCor,MR[2],MR[2],MCor,MCor]);gable(G,w,d,0,h,0,1.3,MCor2,true)}
-place(G,s,sd*(edge+w/2+ex),0);cg(s).add(G)};
+if(hillH(s,sd*(edge+w/2))>.6)return;place(G,s,sd*(edge+w/2+ex),0);cg(s).add(G)};
 for(let s=S0+10;s<S1-60;s+=12)for(const sd of[-1,1]){if(inTun(s)||inTun(s+10)||BR.some(c=>Math.abs(c-s)<14))continue;const dn=town(s);
 if(dn>.8&&hash(s*.7+sd)<.85)bld(s,(sd<0?-OFF(s):0)+22+hash(s)*4,sd,dn,1,Math.floor(hash(s+4)*9));
 if(hash(s*.31+sd*5)<dn*.85&&!ST.some(q=>sd>0&&s>q.x-125&&s<q.x+40))bld(s,sd<0?-OFF(s)+9+hash(s+7)*2:11+hash(s+7)*3,sd,dn,0,Math.floor(hash(s+10)*9))}
