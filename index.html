@@ -30,7 +30,7 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 </main><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script>
 const cv=document.getElementById('c'),g=cv.getContext('2d'),ov=document.getElementById('ov');
 const W=960,H=720,hy=225,F=560,CH=2.7;
-const ST=[{n:'あおば台',x:0,t:0},{n:'みなと町',x:1500,t:125},{n:'さくら野',x:3200,t:265},{n:'とうげ',x:4700,t:400}];
+const ST=[{n:'あおば台',x:0,t:0},{n:'みなと町',x:1500,t:140},{n:'さくら野',x:3200,t:290},{n:'とうげ',x:4700,t:440}];
 const LIM=[[-300,250,55],[250,900,80],[900,1300,85],[1300,1750,70],[1750,2000,80],[2000,2500,55],[2500,3050,85],[3050,3500,70],[3500,3950,80],[3950,4400,85],[4400,9e3,60]];
 const CUR=[[400,800,1/700],[1000,1250,-1/600],[1900,2450,1/450],[2650,3000,-1/800],[3600,4000,1/600],[4100,4500,-1/500]];
 const limAt=x=>{for(const z of LIM)if(x>=z[0]&&x<z[1])return z[2];return 60};
@@ -44,10 +44,12 @@ const ASP={R:999,Y:45,YG:65,G:999},NM={R:'停止',Y:'注意',YG:'減速',G:'進�
 function aspect(i){const a=S.sg;if(a[i].red)return'R';if(a[i+1]&&a[i+1].red)return'Y';if(a[i+2]&&a[i+2].red)return'YG';return'G'}
 const hash=k=>{const v=Math.sin(k*127.1)*43758.5453;return v-Math.floor(v)};
 let S,last=0;
-function init(){S={atsw:0,atsk:0,atsr:'',sc:{},ovp:false,sg:SIGS.map(()=>({dec:false,red:false})),si:-1,lim:55,x:0,v:0,lev:0,lv:0,pw:0,br:0,bg:0,clock:0,run:false,cur:1,doors:false,dwell:0,ats:false,atsT:0,over:0,res:[],pen:0,msg:'',mt:0,warned:false,state:'title'}}
+// 車両諸元（AR300形相当の単行気動車。液体式：変速段=トルクコンバータ、直結段=直結1段）
+const DC={m:34,me:36e3,pm:217e3,ni:650,nx:2100,vd:25.6,t0:3,up:55,dn:42,nf:[0,.18,.4,.6,.8,1]};
+function init(){S={atsw:0,atsk:0,atsr:'',sc:{},ovp:false,sg:SIGS.map(()=>({dec:false,red:false})),si:-1,lim:55,x:0,v:0,lev:0,lv:0,pw:0,br:0,ne:DC.ni,gear:'N',sh:0,bc:0,ft:0,mr:8.8,cmp:false,bg:0,clock:0,run:false,cur:1,doors:false,dwell:0,ats:false,atsT:0,over:0,res:[],pen:0,msg:'',mt:0,warned:false,state:'title'}}
 function toast(m,t=3){S.msg=m;S.mt=t}
 function start(){ov.style.display='none';init();S.state='run'}
-function showTitle(){ov.style.display='flex';ov.innerHTML='<div class="box"><h2>運転台に乗ろう</h2><p>あおば台 → みなと町 → さくら野 → とうげ。運転席からの眺めで、4駅を時刻通りに、停止位置ぴったりに走らせます。</p><ul><li>↑↓キー（またはボタン）でマスコン操作。力行 P1〜P5、ブレーキ B1〜B8、Space で非常ブレーキ</li><li>制限速度標識（白地に黒の数字）の速度を守ってください。超過が続くと減点されます（ATS-SKは速度を常時は監視しません）</li><li>停車駅の手前には「停車駅接近」の標識があります。ホームの黄色い停止位置目標に先頭を合わせて停めてください。残り距離の表示はありません</li><li>最初に力行した瞬間からダイヤ時計がスタート</li><li>車両は甘木鉄道AR301（AR300形）をモデルにした単行のワンマン気動車です。機関は295PS（定格2,100rpm）、液体式、三管式直通空気ブレーキ、最高速度は85km/h。運転台の配置は、新型ARe501の運転台写真を参考にしています（AR301の実車とは異なる場合があります）。ワンハンドルのマスコン（通常は画面外。Mキーで表示を切り替え。段位と速度は左上に表示）、速度計と圧力計、モニターがあります</li><li>上り下りの勾配、トンネル、踏切があります。下り坂では何もしなくても加速します</li><li>信号は、赤＝停止、黄＝注意（45km/h以下）、青（緑）と黄＝減速（65km/h以下）、青（緑）＝進行です（速度は鉄道会社により異なります）。保安装置はATS-SK型です。注意信号を通過すると警報が鳴るので、5秒以内に「C」キーで確認してください。停止信号を越える、停止信号の手前で速度が高すぎる、警報を確認しない、のいずれかで非常ブレーキがかかり、停止後に「R」キーで復帰します</li></ul><button class="pri" id="go">運転開始</button></div>';document.getElementById('go').onclick=start}
+function showTitle(){ov.style.display='flex';ov.innerHTML='<div class="box"><h2>運転台に乗ろう</h2><p>あおば台 → みなと町 → さくら野 → とうげ。運転席からの眺めで、4駅を時刻通りに、停止位置ぴったりに走らせます。</p><ul><li>↑↓キー（またはボタン）でマスコン操作。力行 P1〜P5、ブレーキ B1〜B8、Space で非常ブレーキ</li><li>制限速度標識（白地に黒の数字）の速度を守ってください。超過が続くと減点されます（ATS-SKは速度を常時は監視しません）</li><li>停車駅の手前には「停車駅接近」の標識があります。ホームの黄色い停止位置目標に先頭を合わせて停めてください。残り距離の表示はありません</li><li>最初に力行した瞬間からダイヤ時計がスタート</li><li>車両は甘木鉄道AR301（AR300形）をモデルにした単行のワンマン気動車です。機関は295PS（定格2,100rpm）、液体式、三管式直通空気ブレーキ、最高速度は85km/h。約55km/hで変速段から直結段に自動で切り替わり、切替中は一瞬加速が途切れます。運転台の配置は、新型ARe501の運転台写真を参考にしています（AR301の実車とは異なる場合があります）。ワンハンドルのマスコン（通常は画面外。Mキーで表示を切り替え。段位と速度は左上に表示）、速度計と圧力計、モニターがあります</li><li>上り下りの勾配、トンネル、踏切があります。下り坂では何もしなくても加速します</li><li>信号は、赤＝停止、黄＝注意（45km/h以下）、青（緑）と黄＝減速（65km/h以下）、青（緑）＝進行です（速度は鉄道会社により異なります）。保安装置はATS-SK型です。注意信号を通過すると警報が鳴るので、5秒以内に「C」キーで確認してください。停止信号を越える、停止信号の手前で速度が高すぎる、警報を確認しない、のいずれかで非常ブレーキがかかり、停止後に「R」キーで復帰します</li></ul><button class="pri" id="go">運転開始</button></div>';document.getElementById('go').onclick=start}
 function showEnd(){const s=S,tot=s.res.reduce((a,r)=>a+r.sp+r.pu,0)-s.pen,rk=tot>=380?'S':tot>=300?'A':tot>=220?'B':'C';
 ov.style.display='flex';ov.innerHTML='<div class="box"><h2>運転終了　評価 '+rk+'</h2><table><tr><th>駅</th><th>停止誤差</th><th>定時差</th><th>点</th></tr>'+s.res.map(r=>'<tr><td>'+r.n+'</td><td>'+(r.e>=0?'+':'')+r.e.toFixed(1)+'m</td><td>'+(r.d>=0?'+':'')+r.d+'秒</td><td>'+(r.sp+r.pu)+'</td></tr>').join('')+'<tr><td>ATS減点</td><td></td><td></td><td>-'+s.pen+'</td></tr><tr><td><b>合計</b></td><td></td><td></td><td><b>'+tot+'</b></td></tr></table><button class="pri" id="go">もう一度</button></div>';document.getElementById('go').onclick=start}
 function setLev(v){if(S.state==='run'&&!S.ats)S.lev=v}
@@ -67,15 +69,33 @@ s.cur++;s.doors=true;
 if(s.cur>=ST.length){s.dwell=1e9;s.state='end';setTimeout(showEnd,2000)}else s.dwell=8}
 
 function step(dt){const s=S;if(s.mt>0)s.mt-=dt;
-let tp=0,tb=0,L=s.ats?-9:s.lev;
-if(L>0)tp=L;else if(L<0)tb=L===-9?1.3:-L*.13;
-if(s.doors){tp=0;tb=Math.max(tb,.6)}
-tp*=Math.max(0,Math.min(1,(85.5-s.v*3.6)/5));if(!s.run&&L>0&&!s.doors)s.run=true;
+const L=s.ats?-9:s.lev,tp=L>0&&!s.doors?L:0;
+if(!s.run&&L>0&&!s.doors)s.run=true;
 if(s.run)s.clock+=dt;
 s.lv+=(L-s.lv)*(1-Math.exp(-dt*14));
-s.pw+=(tp-s.pw)*(1-Math.exp(-dt/.45));s.br+=(tb-s.br)*(1-Math.exp(-dt/.55));
-const v=s.v,a=s.pw*.125*(1-.65*v/30)-s.br-(v>.01?.01+.0002*v*v:0)-9.8*grdAt(s.x)/1000;
-s.v=Math.max(0,v+a*dt);s.x+=s.v*dt;s.acc=(s.acc||0)*.92+(s.v-v)/dt*.08;s.mr=(s.mr==null?8.8:s.mr);s.mr+=(8.8-s.br*.8-s.mr)*dt*.4;s.bg+=curv(s.x)*s.v*dt*F;
+const v=s.v,k0=v*3.6,ntar=DC.ni+(DC.nx-DC.ni)*DC.nf[tp];
+// 変速機：ノッチオフで中立。変速段→直結段は自動切替（切替中は駆動力が抜ける）
+if(!tp)s.gear='N';else if(s.gear==='N'){s.gear=k0>=DC.up?'D':'T';s.sh=.7}else if(s.gear==='T'&&k0>=DC.up){s.gear='D';s.sh=.8}else if(s.gear==='D'&&k0<DC.dn){s.gear='T';s.sh=.7}
+s.sh=Math.max(0,s.sh-dt);
+// 機関回転数：直結中は車速に拘束、それ以外はガバナ目標へ有限の速さで追従（変速段の低速域はトルコン負荷でストール回転数止まり）
+const nd=v/DC.vd*DC.nx;
+if(s.gear==='D'&&s.sh<.3)s.ne+=(nd-s.ne)*(1-Math.exp(-dt*8));
+else{const nt=s.gear==='N'?DC.ni:s.gear==='D'?Math.max(DC.ni,Math.min(ntar,nd)):Math.min(ntar,DC.nx*(.85+.15*Math.min(1,v/(DC.vd*.8)))),r=nt>s.ne?450:700;s.ne+=Math.max(-r*dt,Math.min(r*dt,nt-s.ne))}
+// 引張力：変速段はトルコン（吸収トルク∝回転数²、トルク比は速度比で低下）、直結段は機関出力/速度（ガバナで燃料カット）
+let ft=0;const nr=s.ne/DC.nx;
+if(s.sh<=0&&s.gear==='T'){const vt=DC.vd*nr,e=v/vt,t=e<.8?DC.t0-(DC.t0-1)*e/.8:Math.max(0,1-(e-.8)/.17);ft=DC.pm*nr*nr*nr*t*.95/vt}
+else if(s.sh<=0&&s.gear==='D'){const fu=Math.max(0,Math.min(1,(ntar-s.ne)/80));ft=DC.pm*nr*fu*.95/Math.max(v,1)}
+s.ft+=(ft-s.ft)*(1-Math.exp(-dt/.25));s.pw=s.ft/3200;
+// ブレーキ：直通空気ブレーキ。BC圧（kgf/cm²）が一次遅れで追従、制輪子摩擦は低速で増加
+const bt=L===-9?3.9:L<0?-L/8*3.4:0,bT=s.doors?Math.max(bt,1.5):bt,pb=s.bc;
+s.bc+=(bT-s.bc)*(1-Math.exp(-dt/(bT>s.bc?.9:1.2)));if(s.bc>pb)s.mr-=(s.bc-pb)*.12;
+s.br=s.bc/3.4*.9*(1+.35*Math.exp(-k0/10));
+// 抵抗：走行抵抗（kgf/t＋空気抵抗）、勾配、曲線（800/R kgf/t）
+const fr=v>.01?9.8*((1.6+.0285*k0)*DC.m+.028*k0*k0+800*Math.abs(curv(s.x))*DC.m):0,fg=9.8*DC.m*grdAt(s.x);
+const a=(s.ft-fr-fg)/DC.me-s.br;
+s.v=Math.max(0,v+a*dt);s.x+=s.v*dt;s.acc=(s.acc||0)*.92+(s.v-v)/dt*.08;
+// 元空気ダメ：機関駆動の空気圧縮機（7.8で入、8.8で切）
+if(s.mr<7.8)s.cmp=true;else if(s.mr>=8.8)s.cmp=false;if(s.cmp)s.mr+=(.03+.09*(s.ne-DC.ni)/(DC.nx-DC.ni))*dt;s.mr-=.002*dt;s.bg+=curv(s.x)*s.v*dt*F;
 while(s.si+1<SIGS.length&&s.x>SIGS[s.si+1].x){s.si++;const ap=aspect(s.si);if(ap==='R')atsEB('即時停止（停止信号冒進）',100);else if(ap==='Y'&&!s.ats)s.atsw=5}
 SIGS.forEach((q,i)=>{const o=s.sg[i];if(q.w&&!o.dec&&s.clock>=q.w[0]){o.dec=true;o.red=q.x-s.x>450&&s.run}if(o.red&&s.clock>=q.w[1])o.red=false});
 const kmh=s.v*3.6,lim=Math.min(limAt(s.x),s.si>=0?ASP[aspect(s.si)]:999);s.lim=lim;
@@ -235,11 +255,6 @@ if(BR.some(b=>Math.abs(s-b)<7)||(plotType(s,sd)&&Math.abs(lat)>(sd>0?26:-OFF(s)+
 const q0=hash(s*.9),hh=[9+q0*8,15+q0*10,8+q0*5,6+q0*3][ty],sx=hh*[.6,.36,.8,.75][ty]*(.85+hash(s+9)*.3),a=at(s),c=Math.cos(a.th),q=Math.sin(a.th),key=Math.floor((s-S0)/150)*4+ty;
 (bk[key]=bk[key]||[]).push([a.x+c*lat,a.y-.05,a.z+q*lat,-a.th+hash(s*2)*3,sx,hh,.88+hash(s*3)*.24,.9+hash(s*5)*.2,.82+hash(s*7)*.22])}
 Object.keys(bk).forEach(key=>{const L=bk[key],ty=key%4,c=S0+(Math.floor(key/4)+.5)*150;[0,1].forEach(j=>{const im=new TV.InstancedMesh(PG,TMt[ty],L.length);L.forEach((t,i)=>{D.position.set(t[0],t[1],t[2]);D.rotation.set(0,t[3]+j*1.5708,0);D.scale.set(t[4],t[5],1);D.updateMatrix();im.setMatrixAt(i,D.matrix);im.setColorAt(i,CL.setRGB(t[6],t[7],t[8]))});im.frustumCulled=false;add(im);CHK.push({o:im,c})})});
-// catenary
-const stl=Lm(0x59636e),np=Math.ceil((S1-S0)/50)+1,P1=new TV.InstancedMesh(new TV.BoxGeometry(.3,6.5,.3),stl,np),P2=new TV.InstancedMesh(new TV.BoxGeometry(3,.16,.16),stl,np);let pc=0;
-for(let s=Math.ceil(S0/50)*50;s<S1;s+=50){if(inTun(s))continue;const a=at(s),c=Math.cos(a.th),q=Math.sin(a.th);D.rotation.set(0,-a.th,0);D.scale.set(1,1,1);D.position.set(a.x-c*2.9,a.y+3.25,a.z-q*2.9);D.updateMatrix();P1.setMatrixAt(pc,D.matrix);D.position.set(a.x-c*1.4,a.y+5.7,a.z-q*1.4);D.updateMatrix();P2.setMatrixAt(pc,D.matrix);pc++}
-P1.count=P2.count=pc;P1.frustumCulled=P2.frustumCulled=false;add(P1);add(P2);
-for(const hh of[5.3,5.9]){const pt=[];for(let s=S0;s<S1;s+=10){const a=at(s);pt.push(new TV.Vector3(a.x,a.y+hh,a.z))}add(new TV.Line(new TV.BufferGeometry().setFromPoints(pt),new TV.LineBasicMaterial({color:0x2a3038})))}
 // stations
 const bx=(w,h,d,s,lat,hh,c)=>{const m=add(new TV.Mesh(new TV.BoxGeometry(w,h,d),Lm(c)));place(m,s,lat,hh);return m};
 const MC=[Lm(0xffffff,{map:Tc}),Lm(0x9fa2a7,{map:Tc})],MT=Lm(0xffffff,{map:Ttc}),MFn=Lm(0xffffff,{map:Tfn,transparent:true,alphaTest:.3}),MSt=Lm(0x6a7078),MWd=Lm(0x8b6a45),MLt=new TV.MeshBasicMaterial({color:0xf8fff0}),MEk=ST.map((q,j)=>new TV.MeshBasicMaterial({map:ekimei(j),side:2}));
@@ -350,11 +365,11 @@ q=g.createLinearGradient(0,505,0,540);q.addColorStop(0,'#33363b');q.addColorStop
 knob(66,520,8,-1);knob(92,520,8,-.4);rr(826,396,92,144,8,'#efeee8','#bdbcb4');g.fillStyle='#cfd0cc';g.beginPath();g.arc(860,468,13,0,7);g.fill();g.strokeStyle='#8a8b86';g.lineWidth=2;g.stroke();g.strokeStyle='#e6b800';g.lineWidth=3;g.beginPath();g.arc(878,522,7,0,7);g.stroke();
 g.fillStyle='#d8d5cc';g.fillRect(452,342,40,10);g.restore()}
 const FONT={A:['01110','10001','10001','11111','10001','10001','10001'],T:['11111','00100','00100','00100','00100','00100','00100'],S:['01111','10000','10000','01110','00001','00001','11110'],E:['11111','10000','10000','11110','10000','10000','11111'],B:['11110','10001','10001','11110','10001','10001','11110'],W:['10001','10001','10001','10101','10101','11011','10001'],R:['11110','10001','10001','11110','10100','10010','10001'],N:['10001','11001','10101','10011','10001','10001','10001']};
-function cab(){const s=S,kmh=s.v*3.6,lim=s.lim||limAt(s.x),nx=s.cur<ST.length?ST[s.cur]:null,sa=s.si>=0?aspect(s.si):'G',gd=grdAt(s.x),rpm=Math.round(650+s.pw/5*(900+Math.min(kmh,85)/85*550)),mr=s.mr==null?8.8:s.mr,fl=Math.floor(performance.now()/300)%2;
+function cab(){const s=S,kmh=s.v*3.6,lim=s.lim||limAt(s.x),nx=s.cur<ST.length?ST[s.cur]:null,sa=s.si>=0?aspect(s.si):'G',gd=grdAt(s.x),rpm=Math.round(s.ne),mr=s.mr==null?8.8:s.mr,fl=Math.floor(performance.now()/300)%2;
 cabFrame();g.save();g.translate(0,cdy());
-const on=[s.doors&&s.state==='run',s.ats,kmh>lim,s.atsw>0&&fl,s.br>.1,s.pw>.2,sa==='R',sa==='Y'||sa==='YG',sa==='G',s.v<.05];
+const on=[s.doors&&s.state==='run',s.ats,kmh>lim,s.atsw>0&&fl,s.bc>.3,s.pw>.2,sa==='R',sa==='Y'||sa==='YG',sa==='G',s.v<.05];
 for(let i=0;i<16;i++){g.fillStyle=on[i]?LAMPC[i]:'#3b3f45';if(on[i]){g.shadowColor=LAMPC[i];g.shadowBlur=8}g.fillRect(112+i*14,342,11,8);g.shadowBlur=0}
-gauge(150,398,34,100,10,t=>t%20===0?String(t):'',[[kmh,'#111',2.5]],[[lim,'#e03131']]);gauge(240,398,34,10,1,t=>t%2===0?String(t):'',[[mr,'#111',2.2],[s.br/1.3*3.5,'#d6291f',2.2]],[]);g.fillStyle='#8f949b';g.font='9px sans-serif';g.textAlign='center';g.fillText('km/h',150,424);g.fillText('元空気 / 制動筒',240,424);
+gauge(150,398,34,100,10,t=>t%20===0?String(t):'',[[kmh,'#111',2.5]],[[lim,'#e03131']]);gauge(240,398,34,10,1,t=>t%2===0?String(t):'',[[mr,'#111',2.2],[s.bc,'#d6291f',2.2]],[]);g.fillStyle='#8f949b';g.font='9px sans-serif';g.textAlign='center';g.fillText('km/h',150,424);g.fillText('元空気 / 制動筒',240,424);
 knob(292,384,9,-.8);g.fillStyle='#e8e8e2';g.beginPath();g.arc(292,414,8,0,7);g.fill();g.strokeStyle='#555';g.lineWidth=2;g.stroke();
 rr(322,338,164,102,6,'#1d2025','#3a3e45');g.fillStyle='#071522';g.fillRect(330,346,148,86);
 const stc=s.ats?'#ef4444':s.atsw>0?(fl?'#f0b429':'#7a5a10'):'#22a55a',stt=s.ats?'非常':s.atsw>0?'警報 '+Math.ceil(s.atsw):s.atsk>0?'確認済':'正常';
@@ -365,7 +380,7 @@ g.textAlign='left';g.fillStyle='#fbbf24';g.font='11px sans-serif';g.fillText(gd?
 if(nx){const rem=Math.round(nx.t-s.clock);g.textAlign='right';g.fillStyle=rem<0?'#fbbf24':'#9fd8b4';g.fillText('ダイヤ '+(rem>=0?'+':'-')+Math.abs(rem)+'秒',474,391)}
 g.fillStyle='#16466f';g.fillRect(330,396,148,1);
 g.textAlign='left';g.font='bold 11px sans-serif';g.fillStyle=s.doors?'#fbbf24':'#6df0a0';g.fillText('扉 '+(s.doors?'開':'閉'),335,410);g.fillStyle='#6df0a0';g.fillText('方向 前進 ▲',392,410);
-g.fillStyle='#9fb3c8';g.font='11px sans-serif';g.fillText('エンジン '+(s.ats?'出力停止':s.pw>.2?'運転':'アイドリング')+' '+rpm+'rpm',335,422);
+g.fillStyle='#9fb3c8';g.font='11px sans-serif';g.fillText('機関 '+rpm+'rpm '+(s.sh>0?'切替中':{N:'中立',T:'変速',D:'直結'}[s.gear])+(s.cmp?' CP':''),335,422);
 g.fillStyle=s.ats?'#7f1d1d':s.atsw>0?'#7a5a10':'#16466f';g.fillRect(330,424,148,8);g.fillStyle='#fff';g.font='8px sans-serif';g.fillText(s.ats?(s.atsr||'')+(s.v<.05?' / Rで復帰':''):s.atsw>0?'Cで確認':'',333,431);
 rr(500,338,200,102,6,'#23262b','#35393f');for(let i=0;i<7;i++)rr(508+i*27,346,23,8,2,'#d9dce0');
 for(let i=0;i<4;i++){g.strokeStyle='#cfd2d6';g.lineWidth=2;g.beginPath();g.arc(522+i*40,380,7,0,7);g.stroke()}g.fillStyle='#111317';g.beginPath();g.arc(642,380,7,0,7);g.fill();
