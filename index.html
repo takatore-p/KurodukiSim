@@ -91,7 +91,7 @@ if(s.at===ST.length-1){s.bd=1e9;s.state='end';setTimeout(showEnd,2500)}}
 function doorClose(){const s=S;if(s.state!=='run'||!s.doors)return;if(s.bd>0){s.pen+=10;s.bd=3;toast('乗降中に閉扉：ドア挟み（-10点）。再開扉します',3);return}s.doors=false;toast('ドア閉。戸閉め知らせ灯点灯')}
 // 出発信号：停車中の駅では、ドアが閉まり発車15秒前になるまで停止現示
 const startSig=i=>{const s=S;return s.at===i&&(s.doors||ST[i].dep==null||s.clock<ST[i].dep-15)?'R':'G'};
-function depart(){const s=S,i=s.at,st=ST[i],dd=Math.round((s.mv!=null?s.mv:s.clock)-st.dep);s.mv=null;let p=0,m='';
+function depart(){const s=S,i=s.at,st=ST[i],dd=Math.round(s.clock-st.dep);let p=0,m='';
 if(!s.opened){p+=50;m+='客扱い忘れ（-50点）'}if(dd<0){const q=Math.min(50,-dd*5);p+=q;m+=(m?'　':'')+'早発 '+(-dd)+'秒（-'+q+'点）'}
 s.pen+=p;s.dres.push({n:st.n,d:dd});s.at=null;s.run=true;toast(m||(st.n+' 発車　'+(dd>0?'+'+dd+'秒':'定時')),m?4:2.5)}
 
@@ -131,7 +131,7 @@ if(kmh>lim+3){s.over+=dt;if(s.over>3&&!s.ovp){s.ovp=true;s.pen+=20;toast('制限
 if(s.atsw>0){s.atsw-=dt;if(s.atsw<=0){s.atsw=0;atsEB('警報未確認（5秒）',50)}}
 SIGS.forEach((q,i)=>{if(!s.sg[i].red||s.ats)return;for(const[d,vl]of ATS_SP){const c1=q.x-d,k=i+'_'+d;if(cr(c1))s.sc[k]=s.tt;if(cr(c1+ATS_SL)&&s.sc[k]!=null){if(s.tt-s.sc[k]<ATS_SL/(vl/3.6))atsEB('速度照査（'+vl+'km/h超過）',100);delete s.sc[k]}}});
 if(s.v>.5)s.warned=false;
-if(s.at!=null){if(s.v>.05&&s.mv==null)s.mv=s.clock;if(s.x>ST[s.at].x+25)depart()}
+if(s.at!=null&&s.v>.05)depart();// 動き出した瞬間に発車扱い
 ST.forEach((q,i)=>{if(i<ST.length-1&&!s.ats&&s.px<q.x+35&&s.x>=q.x+35&&startSig(i)==='R')atsEB('即時停止（出発信号冒進）',100)});
 if(s.v<.03&&s.cur<ST.length&&!s.doors&&s.at==null){const e=s.x-ST[s.cur].x;
 if(e>-300&&e<60){if(e<-30){if(!s.warned){s.warned=true;toast('停止位置の手前です。前進してください')}}else arrive(e)}}
