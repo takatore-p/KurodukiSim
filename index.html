@@ -26,7 +26,7 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 <h1>運転台 鉄道運転シミュレーター</h1>
 <div class="stage"><canvas id="gl" width="960" height="720"></canvas><canvas id="c" width="960" height="720"></canvas><div id="ov"></div></div>
 <div class="ctl"><button id="bu">▲ 力行 / ブレーキ緩め</button><button id="bd">▼ ブレーキ / 力行戻し</button><button id="bn">N（切）</button><button id="be" class="eb">非常ブレーキ</button><button id="bmc">マスコン表示 (M)</button><button id="bka">ATS確認 (C)</button><button id="bre">ATS復帰 (R)</button><button id="bdo">ドア開 (O)</button><button id="bdc">ドア閉 (L)</button><button id="btt">時刻表 (T)</button><button id="bhn">警笛 (H)</button><button id="bsn">音 ON/OFF (V)</button></div>
-<p class="hint">キー操作: ↑↓（W/S）でマスコン、N で切、Space で非常ブレーキ、C でATS確認、R でATS復帰（チャイム停止も）、M でマスコン表示切替、O／L でドア開／閉、T で時刻表表示切替、H で警笛（押している間）、V でサウンド切替　［版：無線機設置・計器は操作台］</p>
+<p class="hint">キー操作: ↑↓（W/S）でマスコン、N で切、Space で非常ブレーキ、C でATS確認、R でATS復帰（チャイム停止も）、M でマスコン表示切替、O／L でドア開／閉、T で時刻表表示切替、H で警笛（押している間）、V でサウンド切替</p>
 </main><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script><script>
 const cv=document.getElementById('c'),g=cv.getContext('2d'),ov=document.getElementById('ov');
 const W=960,H=720,hy=225,F=560,CH=2.7;
